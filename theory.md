@@ -30,7 +30,12 @@ B. Quadratic Programming (QP)The objective is quadratic ($P$ is positive semi-de
 - Form: $\min \frac{1}{2}x^T P x + q^T x$ s.t. $Gx \leq h, Ax = b$.
 - Use Case: The industry standard for MPC. $P$ usually weights the "cost" of error and control effort.
   
-C. Second-Order Cone Programming (SOCP)Generalizes QPs by allowing "cone" constraints, like $\|Ax + b\|_2 \leq c^T x + d$.
+C. Second-Order Cone Programming (SOCP)Generalizes QPs by allowing "cone" constraints, like 
+
+$$
+\|Ax + b\|_2 \leq c^T x + d
+$$
+
 - Use Case: Robotic grasping (friction cones) and rocket landing (thrust vector constraints).
   
 ## 3. Optimality Conditions (KKT)For a point $x^*$ to be the optimal solution, it must satisfy the Karush-Kuhn-Tucker (KKT) conditions (assuming Slater's condition holds):
@@ -39,7 +44,9 @@ C. Second-Order Cone Programming (SOCP)Generalizes QPs by allowing "cone" constr
 - Complementary Slackness: $\lambda_i f_i(x^*) = 0$. (The multiplier is zero unless the constraint is "active" or "touching").
 - Stationarity: The gradient of the Lagrangian is zero:
 
-  $$\nabla f_0(x^*) + \sum \lambda_i \nabla f_i(x^*) + \sum \nu_i \nabla h_i(x^*) = 0$$
+$$
+\nabla f_0( x^* ) + \sum \lambda_i \nabla f_i( x^* ) + \sum \nu_i \nabla h_i( x^* ) = 0
+$$
 
 ## 4. Duality
 
