@@ -38,7 +38,9 @@ $$
 
 - Use Case: Robotic grasping (friction cones) and rocket landing (thrust vector constraints).
   
-## 3. Optimality Conditions (KKT)For a point $x^*$ to be the optimal solution, it must satisfy the Karush-Kuhn-Tucker (KKT) conditions (assuming Slater's condition holds):
+## 3. Optimality Conditions (KKT)
+
+For a point $x^*$ to be the optimal solution, it must satisfy the Karush-Kuhn-Tucker (KKT) conditions (assuming Slater's condition holds):
 - Primal Feasibility: All original constraints are satisfied ($f_i(x^*) \leq 0$).
 - Dual Feasibility: Lagrange multipliers $\lambda$ for inequalities must be $\geq 0$.
 - Complementary Slackness: $\lambda_i f_i(x^*) = 0$. (The multiplier is zero unless the constraint is "active" or "touching").
