@@ -94,3 +94,5 @@ Pseudocode
 #    - Apply ONLY the first step's steering.
 #    - Move vehicle in PyGame, repeat.
 ```
+
+This problem is an introduction to "convexification" - specifically, with a unicycle dynamics model, we have trigonometric constraints. Convex optimization requires linear constrains. Therefore, we have to "linearize" the dynamics. In this case, we can do this by using "error" dynamics instead of "absolute" dynamics, and 

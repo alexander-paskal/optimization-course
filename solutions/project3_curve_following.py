@@ -13,7 +13,6 @@ import pygame
 import numpy as np
 import cvxpy as cp
 from scipy.interpolate import CubicSpline
-from examples.mpc_reference import solve_mpc
 
 # Parameters
 WIDTH = 800
@@ -61,41 +60,34 @@ print(SPLINE_LENGTH)
 # Ax + By
 # A = Dynamics Matrix
 # B = Control Matrix
-FRAMERATE = 60
+FRAMERATE = 5
 DT = 1/FRAMERATE
 TARGET_SPEED = 30  # pixels/second
 
 X = np.array([
     WAYPOINTS[0][0],
     WAYPOINTS[0][1],
-    3*np.pi/2,
-    TARGET_SPEED
+    0,
+    0
 ])
 
 # Todo - fix ackerman dynamics and visualize reference trajectories
 
-def get_dynamics(state, dt, use_cvxpy=False):
-    sin = np.sin
-    cos = np.cos
-    if use_cvxpy:
-        def cos(x):
-            return 1 - x**2/2 + x**4/24
-        def sin(x):
-            return x - x**3/6 + x**5/120
 
-    x, y, theta, vel = state
+
+def get_dynamics():
     A = np.array([
-        [1, 0, 0, cos(theta)*dt],
-        [0, 1, 0, sin(theta)*dt],
+        [1, 0, DT, 0],
+        [0, 1, 0, DT],
         [0, 0, 1, 0],
         [0, 0, 0, 1]
     ])
 
     B = np.array([
-        [0, 0],
-        [0, 0],
-        [0, DT],
+        [0.5*DT**2, 0],
+        [0, 0.5*DT**2],
         [DT, 0],
+        [ 0, DT],
     ])
     return A, B
 
@@ -110,15 +102,15 @@ def wrap_theta(state):
 def vehicle_dynamics(state, control, use_cvxpy=False):
     # state is (x,y,theta,v)
     # control is (theta',v')
-    A, B = get_dynamics(state, DT, use_cvxpy=use_cvxpy)
-    next_state = A@state + B@np.array([0, control])
+    A, B = get_dynamics()
+    next_state = A@state + B@control
     # wrap_theta(next_state)
     return next_state
 
 POLYGON = np.array([
-    [0, 0],
+    [0, 20],
     [10, 10],
-    [20, 0]
+    [0, 0]
 ])
 
 
@@ -140,7 +132,7 @@ def calculate_curvature(points):
     curvature = np.abs(dx * ddy - dy * ddx) / (dx**2 + dy**2)**1.5
     return curvature
 
-CURVATURE = calculate_curvature(SPLINE)
+# CURVATURE = calculate_curvature(SPLINE)
 
 
 # optimization
@@ -157,21 +149,20 @@ def run_mpc(cur_state, ref_traj, dt):
     constraints = []
     # control constraints
     for i in range(len(ref_traj) - 1):
-        constraints.append(cp.abs(controls[i]) <= np.array([10, 1]))
+        constraints.append(cp.abs(controls[i]) <= np.array([20, 20]))
     
     # Objective
     states = [cur_state]
     state = cur_state
     for i in range(len(ref_traj)-1):
-        linearized_state = np.array([state[0], state[1], ref_traj[i][2], ref_traj[i][3]])
-        A, B = get_dynamics(linearized_state, dt)
+        A, B = get_dynamics()
         state = A@state + B@controls[i]
         states.append(state)
     
+    discount = 0.9
     objective = cp.sum(
-        [cp.norm(states[i] - ref_traj[i]) for _ in range(len(ref_traj))]
+        [cp.norm(states[i][:2] - ref_traj[i][:2])*discount**i for i in range(1, len(ref_traj))]
     )
-
 
     problem = cp.Problem(cp.Minimize(objective), constraints)
     result = problem.solve()
@@ -196,10 +187,7 @@ def get_ref_traj(x, spline, v_target, dt, lookahead):
     # 
 
     ref_traj = [
-        (spline[p_ind][0],spline[p_ind][1],thetas[p_ind],v_target)
-    ]
-    curvature = [
-        CURVATURE[p_ind]
+        (spline[p_ind][0],spline[p_ind][1])
     ]
 
     while len(ref_traj) < lookahead:
@@ -208,24 +196,26 @@ def get_ref_traj(x, spline, v_target, dt, lookahead):
             p_ind += 1
 
             if p_ind == len(segments):
-                return ref_traj, True
+                return np.array(ref_traj), True
             
             dist += segments[p_ind]
         ref_traj.append(
-            (spline[p_ind][0],spline[p_ind][1],thetas[p_ind],v_target)
+            (
+                spline[p_ind][0],
+                spline[p_ind][1],
+            )
         )
     
-        curvature.append(CURVATURE[p_ind])
-    
     ref_traj = np.array(ref_traj)
-    curvature = np.array(curvature).reshape((-1, 1))
-    ref_traj = np.concatenate([ref_traj, curvature], axis=-1)
     return ref_traj, False
 
     
 
 def transformed_polygon():
-    theta = X[2]
+
+    theta = np.arctan2(X[3], X[2])
+    if theta == np.nan:
+        theta = 0
     rotation_matrix = np.array([
         [np.cos(theta), np.sin(theta)],
         [-np.sin(theta), np.cos(theta)],
@@ -277,18 +267,20 @@ def main():
         
 
         # show ref trajectory
-        if step % FRAMERATE == 0:
-            ref_traj, early_termination = get_ref_traj(X, SPLINE, TARGET_SPEED, DT, 5)
+        # if step % FRAMERATE == 0:
+        ref_traj, early_termination = get_ref_traj(X, SPLINE, TARGET_SPEED, DT, 10)
+        if early_termination:
+            break
         
         # mpc_states, mpc_controls = run_mpc(X, ref_traj, DT*FRAMERATE)
-        mpc_states, mpc_controls = solve_mpc(X, ref_traj, TARGET_SPEED, DT, len(ref_traj))
-        for s in mpc_states:
-            pygame.draw.circle(screen, "yellow", s[:2], radius=10)
-        
+        mpc_states, mpc_controls = run_mpc(X, ref_traj, DT)
+        # for s in mpc_states:
+        #     pygame.draw.circle(screen, "yellow", s[:2], radius=2)
+
         control = mpc_controls[0]
 
         for p in ref_traj:
-            pygame.draw.circle(screen, "turquoise", p[:2], radius=10)
+            pygame.draw.circle(screen, "turquoise", p[:2], radius=5)
 
 
         print(X)
@@ -300,7 +292,8 @@ def main():
         pygame.display.flip()   
         clock.tick(FRAMERATE)
         step += 1
-
+    
+    print("All Done")
     pygame.quit()
 
 
