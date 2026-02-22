@@ -1,0 +1,45 @@
+# Optimization Under Uncertainty
+
+In real world autonomy, we never have perfect information. Sensors have noise, and other agents (pedestrians, cars) have intent that is fundamentally unpredictable. Thus, we change our goals from finding a single "optimal" path to finding paths that are robust and safe across a distribution of possible futures.
+
+
+## Types of uncertainty
+
+- Additive Noise i.e gaussian noise or sensor drift
+- Model Mismatch i.e. an incorrect physics model
+- Parametric Uncertainty
+- Structural uncertainty (will an agent in the environment respond with x or y)
+
+## Stochastic Programming & Chance Constraints
+
+Instead of hard constraints ($Gx \leq h$), we use **Chance** contraints, where we accept a small risk that a constraint is violated.
+
+$$
+\min f_0(x) \\
+\\\text {}
+\\
+\text{subject to: } P(f_i(x, \omega) > 0 ) \leq \epsilon
+$$
+
+where $\omega$ is a random variable. This effectively means the probability of hitting an obstacle must be less than 1%. 
+
+## Deterministic Conversion
+
+To solve this, we convert the probabilistic contraint into a deterministic equivalent. If the uncertainty is Gaussian ($\mathcal{N}(\mu, \sigma)$), we can "tighten" the constraints by some factor of the variance. This is basically creating a safety buffer around obstacles. 
+
+## Robust Optimization (Minimax)
+
+This optimizes for the worst case scenario within an uncertainty set
+
+$$
+\min{x} \max{w \in U} f(x, \omega)
+$$
+
+## Tube MPC
+
+In Tube MPC, we create an envelope around a central ideal trajectory, and ensure that the whole tube is collision free
+
+## Solving Techniques
+
+If we can't solve analytically, we can sample N possible realizations and solve for an optimal path in all scenarios
+
